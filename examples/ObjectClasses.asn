@@ -1,0 +1,63 @@
+ObjectClassesExample
+DEFINITIONS EXPLICIT TAGS ::=
+BEGIN
+
+-- Outer PDU type
+Container ::= SEQUENCE {
+    version INTEGER,
+    foos    SEQUENCE OF Foo }
+
+-- Inner data type constrained by an information object set
+Foo ::= SEQUENCE {
+                -- name is a regular field on the SEQUENCE, not
+                -- constrained by the information object instance.
+    name        UTF8String,
+                -- id must take the *value* of an instance of
+                -- the FOO-TYPE class that appears in FooTypeSet.
+                -- 
+                -- This expression "binds" an instance of this Foo
+                -- type to the matched instance in FooTypeSet, a
+                -- bit like a SQL join: hence "table constraint".
+    fooType     FOO-TYPE.&id ({FooTypeSet}),
+                -- data must have the *type* &Foo, as defined in
+                -- the instance of FOO-TYPE that is identified by fooType.
+    data        FOO-TYPE.&Foo ({FooTypeSet}{@fooType}) }
+
+-- The information object class definition from which the instances
+-- of FooTypeSet are created.
+-- This can be thought about as a mapping of between a value and a
+-- collection of values and types - exactly like a rust trait :-)
+FOO-TYPE ::= CLASS {
+    -- Lower case fields name (const) values.
+    --
+    -- The value of &id must be unique across instances of the class.
+    &id         OCTET STRING UNIQUE,
+    -- &descr is not used in the definition of SEQUENCE Foo, and
+    -- therefore exists only in the type system, never in the PDU
+    &descr      UTF8String,
+    -- Upper case fields name types associated with the instance.
+    &Foo }
+    -- The CLASS constructor allows the definition of a custom ASN.1
+    -- syntax for use in defining instances of the class.
+    -- It is essentially a group-capturing regex.
+    WITH SYNTAX { &descr FOO &Foo IDENTIFIED BY &id }
+
+-- The information object set that constrains the fields of SEQUENCE Foo.
+FooTypeSet FOO-TYPE ::=
+    { ft-Bar | ft-Baz }
+
+-- Definition of an instance of FOO-TYPE.
+ft-Bar FOO-TYPE ::=
+    { "Bar" FOO BarFoo IDENTIFIED BY id-ft-Bar }
+-- Named identifier of ft-Bar
+id-ft-Bar OCTET STRING ::= '01'H
+-- The type of &Foo for this instance of FOO-TYPE
+BarFoo ::= INTEGER
+
+-- ... and similarly for ft-Baz
+ft-Baz FOO-TYPE ::=
+    { "Baz" FOO BazFoo IDENTIFIED BY id-ft-Baz }
+id-ft-Baz OCTET STRING ::= '02'H
+BazFoo ::= BIT STRING
+
+END
